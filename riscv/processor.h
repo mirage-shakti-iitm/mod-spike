@@ -135,12 +135,12 @@ struct state_t
       STEP_STEPPED
   } single_step;
 
-#ifdef RISCV_ENABLE_COMMITLOG
+//#ifdef RISCV_ENABLE_COMMITLOG
   commit_log_reg_t log_reg_write;
   reg_t last_inst_priv;
   int last_inst_xlen;
   int last_inst_flen;
-#endif
+//#endif
 };
 
 typedef enum {

@@ -16,6 +16,7 @@
 #include <sys/types.h>
 
 volatile bool ctrlc_pressed = false;
+volatile bool commitlog_flag=false; // neel
 static void handle_signal(int sig)
 {
   if (ctrlc_pressed)
@@ -224,6 +225,12 @@ void sim_t::write_chunk(addr_t taddr, size_t len, const void* src)
   uint64_t data;
   memcpy(&data, src, sizeof data);
   debug_mmu->store_uint64(taddr, data);
+}
+
+// Neel 
+void sim_t::set_commitflag(bool value)
+{
+  commitlog_flag = value;
 }
 
 void sim_t::proc_reset(unsigned id)

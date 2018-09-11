@@ -29,6 +29,7 @@ public:
   // run the simulation to completion
   int run();
   void set_debug(bool value);
+  void set_commitflag(bool value);// neel
   void set_log(bool value);
   void set_histogram(bool value);
   void set_procs_debug(bool value);
@@ -120,6 +121,7 @@ public:
   debug_module_t debug_module;
 };
 
+extern volatile bool commitlog_flag; // neel
 extern volatile bool ctrlc_pressed;
 
 #endif

@@ -7,59 +7,80 @@
 
 static void commit_log_stash_privilege(processor_t* p)
 {
-#ifdef RISCV_ENABLE_COMMITLOG
+//#ifdef RISCV_ENABLE_COMMITLOG
   state_t* state = p->get_state();
   state->last_inst_priv = state->prv;
   state->last_inst_xlen = p->get_xlen();
   state->last_inst_flen = p->get_flen();
-#endif
+//#endif
 }
 
-static void commit_log_print_value(int width, uint64_t hi, uint64_t lo)
+static void commit_log_print_value(int width, uint64_t hi, uint64_t lo, FILE *fptr)
 {
   switch (width) {
     case 16:
-      fprintf(stderr, "0x%04" PRIx16, (uint16_t)lo);
+      fprintf(fptr,"0x%08" PRIx32 ,(uint32_t)lo & 0xFFFF);
+//      fprintf(fptr,"0x%16" PRIx64 ,lo);
       break;
     case 32:
-      fprintf(stderr, "0x%08" PRIx32, (uint32_t)lo);
+      fprintf(fptr, "0x%08" PRIx32, (uint32_t)lo);
       break;
     case 64:
-      fprintf(stderr, "0x%016" PRIx64, lo);
+      fprintf(fptr, "0x%016" PRIx64, lo);
       break;
     case 128:
-      fprintf(stderr, "0x%016" PRIx64 "%016" PRIx64, hi, lo);
+      fprintf(fptr, "0x%016" PRIx64 "%016" PRIx64, hi, lo);
+
       break;
     default:
       abort();
   }
 }
 
+#define LAST(k,n) ((k) & ((1<<(n))-1))
+#define MID(k,m,n) LAST((k)>>(m),((n)-(m)))
+
 static void commit_log_print_insn(state_t* state, reg_t pc, insn_t insn)
 {
-#ifdef RISCV_ENABLE_COMMITLOG
+//#ifdef RISCV_ENABLE_COMMITLOG
+if(commitlog_flag){
+  FILE *fptr;
+  fptr=fopen("spike.dump","a");
+
   auto& reg = state->log_reg_write;
   int priv = state->last_inst_priv;
   int xlen = state->last_inst_xlen;
   int flen = state->last_inst_flen;
-
-  fprintf(stderr, "%1d ", priv);
-  commit_log_print_value(xlen, 0, pc);
-  fprintf(stderr, " (");
-  commit_log_print_value(insn.length() * 8, 0, insn.bits());
-
-  if (reg.addr) {
-    bool fp = reg.addr & 1;
-    int rd = reg.addr >> 1;
-    int size = fp ? flen : xlen;
-    fprintf(stderr, ") %c%2d ", fp ? 'f' : 'x', rd);
-    commit_log_print_value(size, reg.data.v[1], reg.data.v[0]);
-    fprintf(stderr, "\n");
-  } else {
-    fprintf(stderr, ")\n");
+  bool fp = reg.addr & 1;
+  int rd = reg.addr >> 1;
+  int size = fp ? flen : xlen;
+  if(MID(insn.bits(),0,7)==0x63 || MID(insn.bits(),0,7)==0x23
+    || MID(insn.bits(),0,7)==0xf || MID(insn.bits(),0,7)==0x27  ||MID(insn.bits(),0,12)==0x06f || 
+    MID(insn.bits(),0,12)==0x067 || MID(insn.bits(),0,12)==0x073||MID(insn.bits(),0,12)==0x033 ||
+    MID(insn.bits(),0,12)==0x03b || MID(insn.bits(),0,12)==0x037||MID(insn.bits(),0,12)==0x01b || 
+    (rd==0 && !fp)){
+    reg.data.v[0]=0;
+    reg.data.v[1]=0;
+    } 
+  uint32_t lo = insn.bits();
+  uint16_t comp_op =(lo & 0x0000E003);
+  if(comp_op==0xA001||comp_op==0xC001||comp_op==0xE001||comp_op==0xA000||comp_op==0xC000||comp_op==0xE000||comp_op==0xA002||comp_op==0xC002||comp_op==0xE002){
+    reg.data.v[0]=0;
+    reg.data.v[1]=0;
+    } 
+  if(insn.bits()!=0x0000006f && lo!=0xffffa001){
+    fprintf(fptr, "%1d ",priv);
+    commit_log_print_value(xlen, 0, pc, fptr);
+    fprintf(fptr, " (");
+    commit_log_print_value(insn.length()*8,0,insn.bits(),fptr);
+    fprintf(fptr, ") %c%2d ", fp ? 'f' : 'x', rd);
+    commit_log_print_value(size, reg.data.v[1], reg.data.v[0],fptr);
+    fprintf(fptr,"\n");
+    reg.addr = 0;
+    fclose(fptr);
+    }
   }
-  reg.addr = 0;
-#endif
+//#endif
 }
 
 inline void processor_t::update_histogram(reg_t pc)

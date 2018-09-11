@@ -1,3 +1,21 @@
+Custom RISC-V ISA Simulator (spike), IIT Madras
+===============================================
+
+Author: Neel Gala, Anmol Sahoo
+
+About
+-----------
+
+This is a modified version of the RISC-V ISA Simulator written by Andrew Waterman and Yunsup Lee.  
+We are in the process of adding custom extensions to spike, for getting better insight into the  
+RISC-V simulation at the ISA level.
+
+Build Steps
+------------
+Assuming the riscv-tools has been installed and the riscv-fesvr package has been built, the RISCV environment variable
+should be pointing to the install directory of the riscv-tools.
+
+
 RISC-V ISA Simulator
 ======================
 
@@ -22,7 +40,7 @@ install path, and that the riscv-fesvr package is installed there.
     $ apt-get install device-tree-compiler
     $ mkdir build
     $ cd build
-    $ ../configure --prefix=$RISCV --with-fesvr=$RISCV
+    $ ../configure --prefix=$RISCV --with-fesvr=$RISCV --enable-commitlog
     $ make
     $ [sudo] make install
 

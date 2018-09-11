@@ -25,6 +25,7 @@ static void help()
   fprintf(stderr, "  -g                    Track histogram of PCs\n");
   fprintf(stderr, "  -l                    Generate a log of execution\n");
   fprintf(stderr, "  -h                    Print this help message\n");
+  fprintf(stderr, "  -c            			 Pring the commit log\n");
   fprintf(stderr, "  -H                    Start halted, allowing a debugger to connect\n");
   fprintf(stderr, "  --isa=<name>          RISC-V ISA string [default %s]\n", DEFAULT_ISA);
   fprintf(stderr, "  --pc=<address>        Override ELF entry point\n");
@@ -82,6 +83,7 @@ int main(int argc, char** argv)
   bool histogram = false;
   bool log = false;
   bool dump_dts = false;
+  bool commitlog_flag=false; // neel
   bool dtb_enabled = true;
   size_t nprocs = 1;
   reg_t start_pc = reg_t(-1);
@@ -118,6 +120,7 @@ int main(int argc, char** argv)
   parser.option('l', 0, 0, [&](const char* s){log = true;});
   parser.option('p', 0, 1, [&](const char* s){nprocs = atoi(s);});
   parser.option('m', 0, 1, [&](const char* s){mems = make_mems(s);});
+  parser.option('c', 0, 0, [&](const char* s){debug = false; commitlog_flag=true;}); // neel
   // I wanted to use --halted, but for some reason that doesn't work.
   parser.option('H', 0, 0, [&](const char* s){halted = true;});
   parser.option(0, "rbb-port", 1, [&](const char* s){use_rbb = true; rbb_port = atoi(s);});
@@ -138,6 +141,9 @@ int main(int argc, char** argv)
     }
   });
   parser.option(0, "progsize", 1, [&](const char* s){progsize = atoi(s);});
+  FILE *fptr; // neel
+  fptr=fopen("spike.dump","w"); // neel
+  fclose(fptr); // neel
   parser.option(0, "debug-sba", 1,
       [&](const char* s){max_bus_master_bits = atoi(s);});
   parser.option(0, "debug-auth", 0,
@@ -176,6 +182,7 @@ int main(int argc, char** argv)
   }
 
   s.set_debug(debug);
+  s.set_commitflag(commitlog_flag);  
   s.set_log(log);
   s.set_histogram(histogram);
   return s.run();
