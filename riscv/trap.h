@@ -60,4 +60,8 @@ DECLARE_MEM_TRAP(CAUSE_FETCH_PAGE_FAULT, instruction_page_fault)
 DECLARE_MEM_TRAP(CAUSE_LOAD_PAGE_FAULT, load_page_fault)
 DECLARE_MEM_TRAP(CAUSE_STORE_PAGE_FAULT, store_page_fault)
 
+DECLARE_MEM_TRAP(CAUSE_TEE_ENT_COMPARTMENT_EXCEPTION, tee_ent_compartment_exception);
+DECLARE_MEM_TRAP(CAUSE_TEE_RET_COMPARTMENT_EXCEPTION, tee_ret_compartment_exception);
+DECLARE_MEM_TRAP(CAUSE_TEE_PC_OUT_OF_BOUNDS_EXCEPTION, tee_pc_out_of_bounds_exception);
+
 #endif
