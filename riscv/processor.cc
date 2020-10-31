@@ -531,6 +531,26 @@ void processor_t::set_csr(int which, reg_t val)
     case CSR_DSCRATCH:
       state.dscratch = val;
       break;
+
+    case CSR_MCAPCTL: state.mcapctl = val; break;
+    case CSR_MCROSSCOMP_EXCEPTION: state.mcrosscompexception = val; break;
+    case CSR_MCROSSCOMP_RET_EXCEPTION: state.mcrosscompretexception = val; break;
+    case CSR_MCAPMATRIXBASE: state.mcapmatrixbase = val; break;
+    case CSR_MCAPPCBASEBOUNDBASE: state.mcappcbaseboundbase = val; break;
+    case CSR_UCURRCAP: state.ucurrcap = val; break;
+    case CSR_UTARGETCAP: state.utargetcap = val; break;
+    case CSR_UCHECKCAPSP: state.ucheckcapsp = val; break;
+    case CSR_UCURRCAP_PCBASE: state.ucurrcappcbase = val; break;
+    case CSR_UCURRCAP_PCBOUND: state.ucurrcappcbound = val; break;
+    case CSR_UPARCAP_PCBASE: state.uparcappcbase = val; break;
+    case CSR_UANYCAP_PCBASE: state.uanycappcbase = val; break;
+    case CSR_UANYCAP_PCBOUND: state.uanycappcbound = val; break;
+    case CSR_UCOMP_EPC: state.ucompepc = val; break;
+    // case CSR_UNOCROSSCOMP: state.unocrosscomp = val; break;
+    // case CSR_UTAILCALL: state.utailcall = val; break;
+    // case CSR_USHADOWSP: return state.ushadowsp = val; break;
+    // case CSR_UPCBASE:   return state.upcbase = val; break;
+    // case CSR_UPCBOUND:  return state.upcbound = val; break;
   }
 }
 
@@ -683,6 +703,26 @@ reg_t processor_t::get_csr(int which)
       return state.dpc & pc_alignment_mask();
     case CSR_DSCRATCH:
       return state.dscratch;
+
+    case CSR_MCAPCTL: return state.mcapctl;
+    case CSR_MCROSSCOMP_EXCEPTION: return state.mcrosscompexception;
+    case CSR_MCROSSCOMP_RET_EXCEPTION: return state.mcrosscompretexception;
+    case CSR_MCAPMATRIXBASE: return state.mcapmatrixbase;
+    case CSR_MCAPPCBASEBOUNDBASE: return state.mcappcbaseboundbase;
+    case CSR_UCURRCAP: return state.ucurrcap;
+    case CSR_UTARGETCAP: return state.utargetcap;
+    case CSR_UCHECKCAPSP: return state.ucheckcapsp;
+    case CSR_UCURRCAP_PCBASE: return state.ucurrcappcbase;
+    case CSR_UCURRCAP_PCBOUND: return state.ucurrcappcbound;
+    case CSR_UPARCAP_PCBASE: return state.uparcappcbase;
+    case CSR_UANYCAP_PCBASE: return state.uanycappcbase;
+    case CSR_UANYCAP_PCBOUND: return state.uanycappcbound;
+    case CSR_UCOMP_EPC: return state.ucompepc;
+    // case CSR_UNOCROSSCOMP: return state.unocrosscomp;
+    // case CSR_UTAILCALL: return state.utailcall;
+    // case CSR_USHADOWSP: return state.ushadowsp;
+    // case CSR_UPCBASE:   return state.upcbase;
+    // case CSR_UPCBOUND:  return state.upcbound;
   }
   throw trap_illegal_instruction(0);
 }

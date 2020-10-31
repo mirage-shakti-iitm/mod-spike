@@ -95,6 +95,27 @@ struct state_t
   regfile_t<freg_t, NFPR, false> FPR;
 
   // control and status registers
+
+  reg_t mcapctl;
+  reg_t mcrosscompexception;
+  reg_t mcrosscompretexception;
+  reg_t mcapmatrixbase;
+  reg_t mcappcbaseboundbase;
+  reg_t ucurrcap;
+  reg_t utargetcap;
+  reg_t ucheckcapsp;
+  reg_t ucurrcappcbase;
+  reg_t ucurrcappcbound;
+  reg_t uparcappcbase;
+  reg_t uanycappcbase;
+  reg_t uanycappcbound;
+  reg_t ucompepc;
+  // reg_t unocrosscomp;
+  // reg_t utailcall;
+  // reg_t ushadowsp;
+  // reg_t upcbase;
+  // reg_t upcbound;
+
   reg_t prv;    // TODO: Can this be an enum instead?
   reg_t misa;
   reg_t mstatus;
