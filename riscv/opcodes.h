@@ -111,6 +111,14 @@ static uint32_t csrw(unsigned int source, unsigned int csr) {
   return (csr << 20) | (source << 15) | MATCH_CSRRW;
 }
 
+static uint32_t checkcap(uint16_t imm) __attribute__ ((unused));
+static uint32_t checkcap(uint16_t imm)
+{
+  return (bits(imm, 11, 0) << 20) |
+    MATCH_CHECKCAP;
+}
+
+
 static uint32_t addi(unsigned int dest, unsigned int src, uint16_t imm) __attribute__ ((unused));
 static uint32_t addi(unsigned int dest, unsigned int src, uint16_t imm)
 {
