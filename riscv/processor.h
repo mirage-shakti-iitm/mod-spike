@@ -203,6 +203,10 @@ public:
            supports_extension('F') ? 32 : 0;
   }
   extension_t* get_extension() { return ext; }
+  bool is_prev_branch;
+  bool is_prev_call;
+  bool is_prev_ret;
+  bool allow_cross_comp;
   bool supports_extension(unsigned char ext) {
     if (ext >= 'a' && ext <= 'z') ext += 'A' - 'a';
     return ext >= 'A' && ext <= 'Z' && ((state.misa >> (ext - 'A')) & 1);

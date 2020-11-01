@@ -91,6 +91,23 @@ inline void processor_t::update_histogram(reg_t pc)
 #endif
 }
 
+static bool is_checkcap(uint64_t insn_bit_rep)
+{
+  if((insn_bit_rep & MASK_CHECKCAP) == MATCH_CHECKCAP)
+    return 1;
+  else
+    return 0;
+}
+
+static bool is_disable_cap(uint64_t insn_bit_rep, uint64_t csr_val, uint64_t rs1, uint64_t rs2)
+{
+  //if a csrrw instruction and writing into mcapctl register, and the LSB is 0 (i.e. disable cap)
+  if( ((insn_bit_rep & MASK_CSRRW) == MATCH_CSRRW) && (csr_val==CSR_MCAPCTL) && (rs1==0) && rs2==0 )
+    return 1;
+  else
+    return 0;
+}
+
 // This is expected to be inlined by the compiler so each use of execute_insn
 // includes a duplicated body of the function to get separate fetch.func
 // function calls.
@@ -102,6 +119,166 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
     commit_log_print_insn(p->get_state(), pc, fetch.insn);
     p->update_histogram(pc);
   }
+  
+  uint64_t insn_bits = fetch.insn.bits();
+  uint64_t rs1 = fetch.insn.rs1();
+  uint64_t rs2 = fetch.insn.rs2();
+  uint64_t rd = fetch.insn.rd();
+  bool is_jalr = (insn_bits & MASK_JALR)== MATCH_JALR;
+  bool is_c_jalr = (insn_bits & MASK_C_JALR)== MATCH_C_JALR;
+  bool is_c_jr = (insn_bits & MASK_C_JR)== MATCH_C_JR;
+  // DECLARE_INSN(c_jalr, MATCH_C_JALR, MASK_C_JALR)
+  bool is_ret= 0;
+
+  // bool is_jal = (insn_bits & MASK_JAL) == MATCH_JAL;
+  // bool rd_link= (rd==1 || rd==5);
+  // bool rs1_link= (rs1==1 || rs1==5);
+  // bool push= 0;
+  // bool pop= 0;
+
+  reg_t capctl = p->get_csr(CSR_MCAPCTL);
+  reg_t curr_cap_pc_base = p->get_csr(CSR_UCURRCAP_PCBASE);
+  reg_t curr_cap_pc_bound = p->get_csr(CSR_UCURRCAP_PCBOUND);
+  reg_t par_cap_pc_base = p->get_csr(CSR_UPARCAP_PCBASE);
+  reg_t any_cap_pc_base = p->get_csr(CSR_UANYCAP_PCBASE);
+  reg_t any_cap_pc_bound = p->get_csr(CSR_UANYCAP_PCBOUND);
+
+
+  // reg_t pc_bound = p->get_csr(CSR_UPCBOUND);
+  // reg_t ushadowsp = p->get_csr(CSR_USHADOWSP);
+  
+  if(is_checkcap(insn_bits)){
+    // Debug-Checkcap
+    // fprintf(stdout,"\nDebug_Checkcap: %lu -> %lu / %d @ %#x \n", curr_cap, target_cap, no_cross_comp, pc);
+  }
+  if(capctl == 1){
+    if((pc >= curr_cap_pc_base) && (pc < curr_cap_pc_bound)){
+      p->allow_cross_comp = 1;
+      // fprintf(stdout,"%x : Set 1\n", pc);
+    }
+    else if((pc >= par_cap_pc_base) && (pc < any_cap_pc_base)){
+      p->allow_cross_comp = 0;
+      // fprintf(stdout,"%x : Set 0\n", pc);
+    }
+    else if((pc >= any_cap_pc_base) && (pc < any_cap_pc_bound)){
+      p->allow_cross_comp = 1;
+    }
+    else if(p->is_prev_ret == 1){
+      p->set_csr(CSR_MCAPCTL, 0x0);
+      // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d)", p->get_csr(CSR_UCURRCAP), p->allow_cross_comp);
+      throw trap_tee_ret_compartment_exception(pc);
+    }
+    else if(p->allow_cross_comp == 0){
+      p->set_csr(CSR_MCAPCTL, 0x0);
+      // fprintf(stdout,"\nCAPCTL : %d \n", p->get_csr(CSR_MCAPCTL));
+      // exit(0);
+      throw trap_tee_pc_out_of_bounds_exception(pc);
+    }
+    else if(is_checkcap(insn_bits)){
+        p->set_csr(CSR_MCAPCTL, 0x0);
+        reg_t target_cap = (unsigned int)fetch.insn.i_imm();
+        p->set_csr(CSR_UTARGETCAP, target_cap);
+        // fprintf(stdout,"\nEntering into Compartment (%d) from Compartment (%d) : Allowed (%d)", target_cap, p->get_csr(CSR_UCURRCAP), p->allow_cross_comp);
+        throw trap_tee_ent_compartment_exception(pc);
+      }
+    else{
+      throw trap_tee_pc_out_of_bounds_exception(pc);
+      // fprintf(stdout,"\nBypass Capctl: %d %d %d %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc);
+    }
+  }
+  
+  if(is_c_jalr){
+    uint64_t imm_operand = (unsigned int)fetch.insn.i_imm();
+    // fprintf(stdout, "\nc.jalr : %x %x %x %x %x", insn_bits, pc, rd, rs1, imm_operand);
+  }
+
+  if(is_c_jr){
+    uint64_t imm_operand = (unsigned int)fetch.insn.i_imm();
+    // fprintf(stdout, "\nc.jr : %x %lu %lu %lu %lu", insn_bits, rd, rs1, rs2, imm_operand);
+  }
+
+  if((is_jalr && rs1 == 1) || (is_c_jr && rd == 1)){
+      is_ret = 1;
+      uint64_t imm_operand = (unsigned int)fetch.insn.i_imm();
+      // fprintf(stdout, "\n%x %lu %lu %lu %lu", insn_bits, rd, rs1, rs2, imm_operand);
+      // fprintf(stdout, "\nret : %x %d %d %d %d", pc, is_jalr, is_c_jalr, rd, rs1);
+  }
+  else{
+
+  }
+
+  p->is_prev_ret = is_ret;
+
+
+  // if(p->is_prev_branch && (capctl & 0x3)==0x2) {
+
+    // bool cond1= ( (pc>= pc_base) && (pc < pc_bound) );
+    // bool dis_cap= is_disable_cap(insn_bits, fetch.insn.csr(), rs1, rs2);
+    // bool cond2= is_checkcap(insn_bits) || dis_cap;
+ //    if(p->is_prev_ret) {
+ //      reg_t pc_base= MMU.load_int64(ushadowsp-16);
+ //      reg_t cap= (pc_base & 0xfff0000000000000) >> 52;
+ //      pc_base= pc_base & 0x000fffffffffffff;
+  //    p->set_csr(CSR_UPCBASE, pc_base);
+ //      p->set_csr(CSR_UCURRCAP, cap);
+  //    p->set_csr(CSR_UPCBOUND, MMU.load_int64(ushadowsp-8));
+  //    p->set_csr(CSR_USHADOWSP,ushadowsp-16);
+ //    }
+ //    else if(is_checkcap(insn_bits)) {
+ //      reg_t curr_cap = p->get_csr(CSR_UCURRCAP);
+ //      pc_base= pc_base | (curr_cap<<52);
+  //    MMU.store_uint64(ushadowsp, pc_base);
+  //    p->set_csr(CSR_USHADOWSP,ushadowsp+8);
+ //    }
+ //    else if(!cond1 && !cond2) {
+  //    fprintf(stderr,"Arjun: PC Out-of-bounds and no Checkcap for pc: %lx pc_base: %lx pc_bound: %lx\n", pc, pc_base, pc_bound);
+  //    p->is_prev_branch= 0;
+  //    throw trap_tee_pc_bounds_exception(pc);
+  //  }
+
+  //  //if(cond1==0) {  //Target PC beyond current range
+  //  //  //As stated in Page 22 of RISC-V spec 20190608, if push and pop are 1, pop should happen first, followed by push.
+  //  //  if(p->is_prev_ret) {
+  //  //    reg_t ushadowsp = p->get_csr(CSR_USHADOWSP);
+  //  //    p->set_csr(CSR_UPCBOUND, MMU.load_int64(ushadowsp));
+  //  //    p->set_csr(CSR_UPCBASE, MMU.load_int64(ushadowsp-8));
+  //  //    p->set_csr(CSR_USHADOWSP,ushadowsp-16);
+  //  //  }
+ //    //  else if(p->is_prev_call) {
+  //  //    reg_t ushadowsp = p->get_csr(CSR_USHADOWSP);
+  //  //    MMU.store_uint64(ushadowsp, pc_base);
+  //  //    MMU.store_uint64(ushadowsp+8, pc_bound);
+  //  //    p->set_csr(CSR_USHADOWSP,ushadowsp+16);
+  //  //  }
+  //  //}
+
+  // }
+    // if(is_jal && rd_link) {
+    //    push= 1;
+    // }
+    // else if(is_jalr) {
+    //  if(!rd_link && rs1_link) {
+    //    pop= 1;
+  //       is_ret= 1;
+  //     }
+    //  else if(rd_link && !rs1_link)
+    //    push= 1;
+    //  else if(rd_link && rs1_link) {
+    //    push= 1;
+    //    if(rs1!=rd)
+    //      pop= 1;
+    //  }
+    // }
+
+    // p->is_prev_call= push & !pop;
+    
+
+   //  bool is_csrrw= (insn_bits & MASK_CSRRW) == MATCH_CSRRW;
+   //  if(is_csrrw && (fetch.insn.i_imm()==0x812)) { //write pc_bound
+      // MMU.store_uint64(ushadowsp, pc_bound);
+      // p->set_csr(CSR_USHADOWSP,ushadowsp+8);
+   //  }
+
   return npc;
 }
 
