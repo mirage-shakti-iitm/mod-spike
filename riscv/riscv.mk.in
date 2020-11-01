@@ -61,6 +61,9 @@ riscv_gen_hdrs = \
 	icache.h \
 	insn_list.h \
 
+riscv_custom0 = \
+	checkcap \
+	
 riscv_insn_list = \
 	add \
 	addi \
@@ -290,9 +293,9 @@ riscv_insn_list = \
 	wfi \
 	xor \
 	xori \
+	$(riscv_custom0) \
 
-riscv_custom0 = \
-	checkcap \
+
 
 riscv_gen_srcs = \
 	$(addsuffix .cc,$(riscv_insn_list))
