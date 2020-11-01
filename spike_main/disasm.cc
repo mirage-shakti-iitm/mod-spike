@@ -319,6 +319,8 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_XFTYPE(code) DISASM_INSN(#code, code, 0, {&frd, &xrs1})
   #define DEFINE_SFENCE_TYPE(code) DISASM_INSN(#code, code, 0, {&xrs1, &xrs2})
 
+  add_insn(new disasm_insn_t("checkcap", match_checkcap, mask_checkcap, {&imm}));
+  
   DEFINE_XLOAD(lb)
   DEFINE_XLOAD(lbu)
   DEFINE_XLOAD(lh)
