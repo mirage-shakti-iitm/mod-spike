@@ -113,12 +113,6 @@ static bool is_disable_cap(uint64_t insn_bit_rep, uint64_t csr_val, uint64_t rs1
 // function calls.
 static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 {
-  commit_log_stash_privilege(p);
-  reg_t npc = fetch.func(p, fetch.insn, pc);
-  if (npc != PC_SERIALIZE_BEFORE) {
-    commit_log_print_insn(p->get_state(), pc, fetch.insn);
-    p->update_histogram(pc);
-  }
   
   uint64_t insn_bits = fetch.insn.bits();
   uint64_t rs1 = fetch.insn.rs1();
@@ -182,8 +176,10 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
         throw trap_tee_ent_compartment_exception(pc);
       }
     else{
+      fprintf(stdout,"\nBypass Capctl: %d %d %d %x %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
+      p->set_csr(CSR_MCAPCTL, 0x0);
       throw trap_tee_pc_out_of_bounds_exception(pc);
-      // fprintf(stdout,"\nBypass Capctl: %d %d %d %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc);
+      
     }
   }
   
@@ -207,9 +203,20 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 
   }
 
+  
+  // fprintf(stdout, "\n%x", pc);
+
   p->is_prev_ret = is_ret;
 
 
+commit_log_stash_privilege(p);
+  reg_t npc = fetch.func(p, fetch.insn, pc);
+  if (npc != PC_SERIALIZE_BEFORE) {
+    commit_log_print_insn(p->get_state(), pc, fetch.insn);
+    p->update_histogram(pc);
+  }
+  
+  
   // if(p->is_prev_branch && (capctl & 0x3)==0x2) {
 
     // bool cond1= ( (pc>= pc_base) && (pc < pc_bound) );
