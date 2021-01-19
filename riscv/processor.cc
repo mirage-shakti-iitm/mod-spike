@@ -288,9 +288,25 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_csr(CSR_MSTATUS, s);
     set_privilege(PRV_S);
   } else {
-    reg_t vector = (state.mtvec & 1) && interrupt ? 4*bit : 0;
-    state.pc = (state.mtvec & ~(reg_t)1) + vector;
-    state.mepc = epc;
+
+    if(t.cause() == CAUSE_TEE_ENT_COMPARTMENT_EXCEPTION){
+      state.pc = get_csr(CSR_MCROSSCOMP_EXCEPTION);
+      state.comp_exception = true;
+      state.ucompepc = epc;
+    }
+    else if(t.cause() == CAUSE_TEE_RET_COMPARTMENT_EXCEPTION){
+      state.pc = get_csr(CSR_MCROSSCOMP_RET_EXCEPTION);
+      state.comp_exception = true;
+      state.ucompepc = epc;
+    }
+    else{
+      state.comp_exception = false;
+      reg_t vector = (state.mtvec & 1) && interrupt ? 4*bit : 0;
+      state.pc = (state.mtvec & ~(reg_t)1) + vector;
+      state.mepc = epc;
+      
+    }
+
     state.mcause = t.cause();
     state.mtval = t.get_tval();
 

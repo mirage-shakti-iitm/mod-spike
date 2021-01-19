@@ -110,6 +110,9 @@ struct state_t
   reg_t uanycappcbase;
   reg_t uanycappcbound;
   reg_t ucompepc;
+  
+  bool comp_exception;
+
   // reg_t unocrosscomp;
   // reg_t utailcall;
   // reg_t ushadowsp;
