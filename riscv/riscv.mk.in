@@ -293,6 +293,8 @@ riscv_insn_list = \
 	wfi \
 	xor \
 	xori \
+	hash \
+	val \
 	$(riscv_custom0) \
 
 
