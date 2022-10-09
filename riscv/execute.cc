@@ -141,6 +141,13 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   // reg_t pc_bound = p->get_csr(CSR_UPCBOUND);
   // reg_t ushadowsp = p->get_csr(CSR_USHADOWSP);
   
+
+  if((is_checkcap(insn_bits)) && (((unsigned int)fetch.insn.i_imm()) == 211)){
+    // fprintf(stdout, "\nGMP:%08x\n", pc);
+  }
+
+  
+
   if(is_checkcap(insn_bits)){
     // Debug-Checkcap
     // fprintf(stdout,"\nDebug_Checkcap: %lu -> %lu / %d @ %#x \n", curr_cap, target_cap, no_cross_comp, pc);
@@ -148,35 +155,50 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   if(capctl == 1){
     if((pc >= curr_cap_pc_base) && (pc < curr_cap_pc_bound)){
       p->allow_cross_comp = 1;
-      // fprintf(stdout,"%x : Set 1\n", pc);
     }
     else if((pc >= par_cap_pc_base) && (pc < any_cap_pc_base)){
       p->allow_cross_comp = 0;
-      // fprintf(stdout,"%x : Set 0\n", pc);
     }
     else if((pc >= any_cap_pc_base) && (pc < any_cap_pc_bound)){
       p->allow_cross_comp = 1;
     }
     else if(p->is_prev_ret == 1){
       p->set_csr(CSR_MCAPCTL, 0x0);
-      // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d)", p->get_csr(CSR_UCURRCAP), p->allow_cross_comp);
+      // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d) (%x)", p->get_csr(CSR_UCURRCAP), p->allow_cross_comp, p->get_csr(CSR_UCHECKCAPSP));
+      // fprintf(stdout,"\nReturn from -> %d (%x)\n", p->get_csr(CSR_UCURRCAP), pc);
+      fflush(stdout);
       throw trap_tee_ret_compartment_exception(pc);
     }
     else if(p->allow_cross_comp == 0){
       p->set_csr(CSR_MCAPCTL, 0x0);
       // fprintf(stdout,"\nCAPCTL : %d \n", p->get_csr(CSR_MCAPCTL));
       // exit(0);
+      // fprintf(stdout,"\nNOCROSS: %d %d %d %x %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
       throw trap_tee_pc_out_of_bounds_exception(pc);
     }
     else if(is_checkcap(insn_bits)){
         p->set_csr(CSR_MCAPCTL, 0x0);
         reg_t target_cap = (unsigned int)fetch.insn.i_imm();
         p->set_csr(CSR_UTARGETCAP, target_cap);
-        // fprintf(stdout,"\nEntering into Compartment (%d) from Compartment (%d) : Allowed (%d)", target_cap, p->get_csr(CSR_UCURRCAP), p->allow_cross_comp);
+        // printf("\n\n\n\n\n\n ********************************************************** \n\n\n\n\n\n");
+
+        // if((p->get_csr(CSR_UCURRCAP)) == 0x1)
+          // fprintf(stdout, "\nGMP:%08x\n", pc);
+        // fprintf(stdout, "\nIS_PREV_RET => %x\n", p->is_prev_ret);
+        // fprintf(stdout,"\nCompartment transition %llu -> %llu (%x) (%x)", p->get_csr(CSR_UCURRCAP), target_cap, pc, p->get_csr(CSR_UCHECKCAPSP));
+        // fprintf(stdout,"\nEntry -> %llu : %llu\n", p->get_csr(CSR_UCURRCAP), target_cap);
+        if(p->get_csr(CSR_UCURRCAP) == 27 && (target_cap == 40)){
+          // fprintf(stdout,"\nEntry27_40 : %x\n", pc);
+          fflush(stdout);
+        }
+        fflush(stdout);
         throw trap_tee_ent_compartment_exception(pc);
       }
     else{
-      fprintf(stdout,"\nBypass Capctl: %d %d %d %x %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
+      fprintf(stdout,"\nBypass Capctl: %d %d %d %d %x %x", p->get_csr(CSR_UCURRCAP), p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
+      fflush(stdout);
+      fprintf(stdout,"\nNOCRO: %d %x %x %d",  p->allow_cross_comp, pc, p->get_csr(CSR_MEPC), is_checkcap(insn_bits));
+      fflush(stdout);
       p->set_csr(CSR_MCAPCTL, 0x0);
       throw trap_tee_pc_out_of_bounds_exception(pc);
       
@@ -194,17 +216,24 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   }
 
   if((is_jalr && rs1 == 1) || (is_c_jr && rd == 1)){
-      is_ret = 1;
       uint64_t imm_operand = (unsigned int)fetch.insn.i_imm();
-      // fprintf(stdout, "\n%x %lu %lu %lu %lu", insn_bits, rd, rs1, rs2, imm_operand);
+      
+      // fprintf(stdout, "\n%x %lu %lu %lu %lu, %lu, %lu", pc, rd, rs1, rs2, imm_operand, is_jalr, is_c_jr);
+      is_ret = 1;
+      if(imm_operand && (is_jalr && rs1 == 1))
+        is_ret = 0;
+      else{
+        // fprintf(stdout, "\n%x %lu %lu %lu %lu", pc, rd, rs1, rs2, imm_operand);
+      }
       // fprintf(stdout, "\nret : %x %d %d %d %d", pc, is_jalr, is_c_jalr, rd, rs1);
   }
   else{
 
   }
 
+
   
-  // fprintf(stdout, "\n%x", pc);
+  
 
   p->is_prev_ret = is_ret;
 

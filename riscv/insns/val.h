@@ -7,8 +7,8 @@ sreg_t low = sext_xlen(RS1);
 //sreg_t stack_pointer = sext_xlen(READ_REG(X_SP));//reading value of stack pointer . 
 //sreg_t s0 = sext_xlen(READ_REG(8));//reading value of s0 register. 
 
-//printf("bound : base %016llx\n", high);
-//printf("idhash : pointer %016llx\n", low);
+// printf("bound : base %016llx\n", high);
+// printf("idhash : pointer %016llx\n\n", low);
 
 unsigned long long *base = (unsigned long long *)(high & 0x00000000ffffffff);
 unsigned long long *bound = (unsigned long long *)((high & 0xffffffff00000000) >> 32 );
@@ -17,8 +17,11 @@ unsigned int hash = ((low & 0xffffffff00000000) >> 32 );
 
 
 //spatial check
-if (ptr >= bound || ptr < base){
-	printf("Pointer access out of range\n");
+if (ptr > bound || ptr < base){
+	printf("ptr : %8x\n", ptr);
+	printf("base : %8x\n", base);
+	printf("bound : %8x\n", bound);
+	printf("Pointer accesss out of range\n");
 	exit(0);
 }
 
@@ -55,8 +58,10 @@ if(s0 > pointer && pointer > stack_pointer ){ // pointer pointing to stack
 	unsigned long long rand = MMU.load_uint64(base1);
 	unsigned int ret = (unsigned int)rand;
 	ret = ret ^ (unsigned int)(rand >> 32);
-	if(hash != ret){
-		printf("Validate Error for Hash !!\n");
+
+	if(hash != ret && hash != 0){
+		printf("Validate Error for Hash !! %x\n", hash);
 		exit(0);
 	}
+	// printf("Val passed");
 //}

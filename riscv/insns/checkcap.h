@@ -1,6 +1,5 @@
 reg_t capctl = p->get_csr(CSR_MCAPCTL);
 
-
 // if((capctl & 0x3)==0x2){
 // 	throw trap_tee_comp_all_cond_fail(pc);
 // }
