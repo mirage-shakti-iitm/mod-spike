@@ -268,6 +268,20 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     return;
   }
 
+  if(t.is_com_exception() == 1){
+      state.pc = state.comexcvec;
+      state.comp_exception = true;
+      state.comepc = epc;
+      state.comexccause = t.cause();
+      state.comp_mie = state.mie;
+      state.mie = 0;
+      // fprintf(stdout,"Setting comp_exception to true\n");
+      fflush(stdout);
+  }
+
+  else{
+
+  state.comp_exception = false;
   // by default, trap to M-mode, unless delegated to S-mode
   reg_t bit = t.cause();
   reg_t deleg = state.medeleg;
@@ -288,34 +302,20 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_csr(CSR_MSTATUS, s);
     set_privilege(PRV_S);
   } else {
-
-    if(t.cause() == CAUSE_TEE_ENT_COMPARTMENT_EXCEPTION){
-      state.pc = get_csr(CSR_MCROSSCOMP_EXCEPTION);
-      state.comp_exception = true;
-      state.ucompepc = epc;
-    }
-    else if(t.cause() == CAUSE_TEE_RET_COMPARTMENT_EXCEPTION){
-      state.pc = get_csr(CSR_MCROSSCOMP_RET_EXCEPTION);
-      state.comp_exception = true;
-      state.ucompepc = epc;
-    }
-    else{
-      state.comp_exception = false;
       reg_t vector = (state.mtvec & 1) && interrupt ? 4*bit : 0;
       state.pc = (state.mtvec & ~(reg_t)1) + vector;
       state.mepc = epc;
-      
-    }
 
-    state.mcause = t.cause();
-    state.mtval = t.get_tval();
+      state.mcause = t.cause();
+      state.mtval = t.get_tval();
 
-    reg_t s = state.mstatus;
-    s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
-    s = set_field(s, MSTATUS_MPP, state.prv);
-    s = set_field(s, MSTATUS_MIE, 0);
-    set_csr(CSR_MSTATUS, s);
-    set_privilege(PRV_M);
+      reg_t s = state.mstatus;
+      s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
+      s = set_field(s, MSTATUS_MPP, state.prv);
+      s = set_field(s, MSTATUS_MIE, 0);
+      set_csr(CSR_MSTATUS, s);
+      set_privilege(PRV_M);
+  }
   }
 }
 
@@ -548,25 +548,20 @@ void processor_t::set_csr(int which, reg_t val)
       state.dscratch = val;
       break;
 
-    case CSR_MCAPCTL: state.mcapctl = val; break;
-    case CSR_MCROSSCOMP_EXCEPTION: state.mcrosscompexception = val; break;
-    case CSR_MCROSSCOMP_RET_EXCEPTION: state.mcrosscompretexception = val; break;
-    case CSR_MCAPMATRIXBASE: state.mcapmatrixbase = val; break;
-    case CSR_MCAPPCBASEBOUNDBASE: state.mcappcbaseboundbase = val; break;
-    case CSR_UCURRCAP: state.ucurrcap = val; break;
-    case CSR_UTARGETCAP: state.utargetcap = val; break;
-    case CSR_UCHECKCAPSP: state.ucheckcapsp = val; break;
-    case CSR_UCURRCAP_PCBASE: state.ucurrcappcbase = val; break;
-    case CSR_UCURRCAP_PCBOUND: state.ucurrcappcbound = val; break;
-    case CSR_UPARCAP_PCBASE: state.uparcappcbase = val; break;
-    case CSR_UANYCAP_PCBASE: state.uanycappcbase = val; break;
-    case CSR_UANYCAP_PCBOUND: state.uanycappcbound = val; break;
-    case CSR_UCOMP_EPC: state.ucompepc = val; break;
-    // case CSR_UNOCROSSCOMP: state.unocrosscomp = val; break;
-    // case CSR_UTAILCALL: state.utailcall = val; break;
-    // case CSR_USHADOWSP: return state.ushadowsp = val; break;
-    // case CSR_UPCBASE:   return state.upcbase = val; break;
-    // case CSR_UPCBOUND:  return state.upcbound = val; break;
+    case CSR_COMCTL: state.comctl = val; break;
+    case CSR_COMMAT: state.commat = val; break;
+    case CSR_COMPCBNB: state.compcbnb = val; break;
+    case CSR_COMEXCVEC: state.comexcvec = val; break;
+    case CSR_COMEXCCAUSE: state.comexccause = val; break;
+    case CSR_CURRCOM: state.currcom = val; break;
+    case CSR_TARGETCOM: state.targetcom = val; break;
+    case CSR_CHECKCOMSP: state.checkcomsp = val; break;
+    case CSR_CURCOMPCSTART: state.curcompcstart = val; break;
+    case CSR_CURCOMPCEND: state.curcompcend = val; break;
+    case CSR_PARCOMPCSTART: state.parcompcstart = val; break;
+    case CSR_ANYCOMPCSTART: state.anycompcstart = val; break;
+    case CSR_ANYCOMPCEND: state.anycompcend = val; break;
+    case CSR_COMEPC: state.comepc = val; break;
   }
 }
 
@@ -720,25 +715,20 @@ reg_t processor_t::get_csr(int which)
     case CSR_DSCRATCH:
       return state.dscratch;
 
-    case CSR_MCAPCTL: return state.mcapctl;
-    case CSR_MCROSSCOMP_EXCEPTION: return state.mcrosscompexception;
-    case CSR_MCROSSCOMP_RET_EXCEPTION: return state.mcrosscompretexception;
-    case CSR_MCAPMATRIXBASE: return state.mcapmatrixbase;
-    case CSR_MCAPPCBASEBOUNDBASE: return state.mcappcbaseboundbase;
-    case CSR_UCURRCAP: return state.ucurrcap;
-    case CSR_UTARGETCAP: return state.utargetcap;
-    case CSR_UCHECKCAPSP: return state.ucheckcapsp;
-    case CSR_UCURRCAP_PCBASE: return state.ucurrcappcbase;
-    case CSR_UCURRCAP_PCBOUND: return state.ucurrcappcbound;
-    case CSR_UPARCAP_PCBASE: return state.uparcappcbase;
-    case CSR_UANYCAP_PCBASE: return state.uanycappcbase;
-    case CSR_UANYCAP_PCBOUND: return state.uanycappcbound;
-    case CSR_UCOMP_EPC: return state.ucompepc;
-    // case CSR_UNOCROSSCOMP: return state.unocrosscomp;
-    // case CSR_UTAILCALL: return state.utailcall;
-    // case CSR_USHADOWSP: return state.ushadowsp;
-    // case CSR_UPCBASE:   return state.upcbase;
-    // case CSR_UPCBOUND:  return state.upcbound;
+    case CSR_COMCTL: return state.comctl;
+    case CSR_COMMAT: return state.commat;
+    case CSR_COMPCBNB: return state.compcbnb;
+    case CSR_COMEXCVEC: return state.comexcvec;
+    case CSR_COMEXCCAUSE: return state.comexccause;
+    case CSR_CURRCOM: return state.currcom;
+    case CSR_TARGETCOM: return state.targetcom;
+    case CSR_CHECKCOMSP: return state.checkcomsp;
+    case CSR_CURCOMPCSTART: return state.curcompcstart;
+    case CSR_CURCOMPCEND: return state.curcompcend;
+    case CSR_PARCOMPCSTART: return state.parcompcstart;
+    case CSR_ANYCOMPCSTART: return state.anycompcstart;
+    case CSR_ANYCOMPCEND: return state.anycompcend;
+    case CSR_COMEPC: return state.comepc;
   }
   throw trap_illegal_instruction(0);
 }

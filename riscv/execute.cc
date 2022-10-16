@@ -101,8 +101,8 @@ static bool is_checkcap(uint64_t insn_bit_rep)
 
 static bool is_disable_cap(uint64_t insn_bit_rep, uint64_t csr_val, uint64_t rs1, uint64_t rs2)
 {
-  //if a csrrw instruction and writing into mcapctl register, and the LSB is 0 (i.e. disable cap)
-  if( ((insn_bit_rep & MASK_CSRRW) == MATCH_CSRRW) && (csr_val==CSR_MCAPCTL) && (rs1==0) && rs2==0 )
+  //if a csrrw instruction and writing into mcomctl register, and the LSB is 0 (i.e. disable cap)
+  if( ((insn_bit_rep & MASK_CSRRW) == MATCH_CSRRW) && (csr_val==CSR_COMCTL) && (rs1==0) && rs2==0 )
     return 1;
   else
     return 0;
@@ -130,78 +130,70 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   // bool push= 0;
   // bool pop= 0;
 
-  reg_t capctl = p->get_csr(CSR_MCAPCTL);
-  reg_t curr_cap_pc_base = p->get_csr(CSR_UCURRCAP_PCBASE);
-  reg_t curr_cap_pc_bound = p->get_csr(CSR_UCURRCAP_PCBOUND);
-  reg_t par_cap_pc_base = p->get_csr(CSR_UPARCAP_PCBASE);
-  reg_t any_cap_pc_base = p->get_csr(CSR_UANYCAP_PCBASE);
-  reg_t any_cap_pc_bound = p->get_csr(CSR_UANYCAP_PCBOUND);
-
-
-  // reg_t pc_bound = p->get_csr(CSR_UPCBOUND);
-  // reg_t ushadowsp = p->get_csr(CSR_USHADOWSP);
-  
-
-  if((is_checkcap(insn_bits)) && (((unsigned int)fetch.insn.i_imm()) == 211)){
-    // fprintf(stdout, "\nGMP:%08x\n", pc);
-  }
-
-  
+  reg_t comctl = p->get_csr(CSR_COMCTL);
+  reg_t curcompcstart = p->get_csr(CSR_CURCOMPCSTART);
+  reg_t curcompcend = p->get_csr(CSR_CURCOMPCEND);
+  reg_t parcompcstart = p->get_csr(CSR_PARCOMPCSTART);
+  reg_t anycompcstart = p->get_csr(CSR_ANYCOMPCSTART);
+  reg_t anycompcend = p->get_csr(CSR_ANYCOMPCEND);
 
   if(is_checkcap(insn_bits)){
     // Debug-Checkcap
-    // fprintf(stdout,"\nDebug_Checkcap: %lu -> %lu / %d @ %#x \n", curr_cap, target_cap, no_cross_comp, pc);
+    // fprintf(stdout,"\nDebug_Checkcap: %lu -> %lu / %d @ %#x \n", curr_cap, targetcom, no_cross_comp, pc);
   }
-  if(capctl == 1){
-    if((pc >= curr_cap_pc_base) && (pc < curr_cap_pc_bound)){
+  if(comctl == 1){
+    if((pc >= curcompcstart) && (pc < curcompcend)){
       p->allow_cross_comp = 1;
     }
-    else if((pc >= par_cap_pc_base) && (pc < any_cap_pc_base)){
+    else if((pc >= parcompcstart) && (pc < anycompcstart)){
       p->allow_cross_comp = 0;
     }
-    else if((pc >= any_cap_pc_base) && (pc < any_cap_pc_bound)){
+    else if((pc >= anycompcstart) && (pc < anycompcend)){
       p->allow_cross_comp = 1;
     }
-    else if(p->is_prev_ret == 1){
-      p->set_csr(CSR_MCAPCTL, 0x0);
-      // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d) (%x)", p->get_csr(CSR_UCURRCAP), p->allow_cross_comp, p->get_csr(CSR_UCHECKCAPSP));
-      // fprintf(stdout,"\nReturn from -> %d (%x)\n", p->get_csr(CSR_UCURRCAP), pc);
+    else if(p->is_prev_ret == 1 && is_checkcap(insn_bits)){
+      p->set_csr(CSR_COMCTL, 0x0);
+      // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d) (%x)", p->get_csr(CSR_CURRCOM), p->allow_cross_comp, p->get_csr(CSR_UCHECKCAPSP));
+      // fprintf(stdout,"\nReturn from -> %d (%x)\n", p->get_csr(CSR_CURRCOM), pc);
       fflush(stdout);
-      throw trap_tee_ret_compartment_exception(pc);
+      throw trap_ret_compartment(pc);
     }
     else if(p->allow_cross_comp == 0){
-      p->set_csr(CSR_MCAPCTL, 0x0);
-      // fprintf(stdout,"\nCAPCTL : %d \n", p->get_csr(CSR_MCAPCTL));
+      p->set_csr(CSR_COMCTL, 0x0);
+      fprintf(stdout,"\nCAPCTL : %d \n", p->get_csr(CSR_COMCTL));
       // exit(0);
-      // fprintf(stdout,"\nNOCROSS: %d %d %d %x %x", p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
-      throw trap_tee_pc_out_of_bounds_exception(pc);
+      fprintf(stdout,"\nNOCROSS: %d %d %d %x %x", p->get_csr(CSR_COMCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_COMEPC));
+      fflush(stdout);
+      throw trap_pc_out_of_bounds(pc);
     }
     else if(is_checkcap(insn_bits)){
-        p->set_csr(CSR_MCAPCTL, 0x0);
-        reg_t target_cap = (unsigned int)fetch.insn.i_imm();
-        p->set_csr(CSR_UTARGETCAP, target_cap);
+        p->set_csr(CSR_COMCTL, 0x0);
+        reg_t targetcom = (unsigned int)fetch.insn.i_imm();
+        p->set_csr(CSR_TARGETCOM, targetcom);
         // printf("\n\n\n\n\n\n ********************************************************** \n\n\n\n\n\n");
 
-        // if((p->get_csr(CSR_UCURRCAP)) == 0x1)
+        // if((p->get_csr(CSR_CURRCOM)) == 0x1)
           // fprintf(stdout, "\nGMP:%08x\n", pc);
         // fprintf(stdout, "\nIS_PREV_RET => %x\n", p->is_prev_ret);
-        // fprintf(stdout,"\nCompartment transition %llu -> %llu (%x) (%x)", p->get_csr(CSR_UCURRCAP), target_cap, pc, p->get_csr(CSR_UCHECKCAPSP));
-        // fprintf(stdout,"\nEntry -> %llu : %llu\n", p->get_csr(CSR_UCURRCAP), target_cap);
-        if(p->get_csr(CSR_UCURRCAP) == 27 && (target_cap == 40)){
+        // fprintf(stdout,"\nCompartment transition %llu -> %llu (%x) (%x)", p->get_csr(CSR_CURRCOM), targetcom, pc, p->get_csr(CSR_CHECKCOMSP));
+        // fprintf(stdout,"\nEntry -> %llu : %llu\n", p->get_csr(CSR_CURRCOM), targetcom);
+        if(p->get_csr(CSR_CURRCOM) == 27 && (targetcom == 40)){
           // fprintf(stdout,"\nEntry27_40 : %x\n", pc);
           fflush(stdout);
         }
+        
         fflush(stdout);
-        throw trap_tee_ent_compartment_exception(pc);
+
+        // state.pc = 0;
+        throw trap_ent_compartment(pc);
       }
     else{
-      fprintf(stdout,"\nBypass Capctl: %d %d %d %d %x %x", p->get_csr(CSR_UCURRCAP), p->get_csr(CSR_MCAPCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_MEPC));
+      fprintf(stdout,"\nBypass Capctl: %d %d %d %d %x %x", p->get_csr(CSR_CURRCOM), p->get_csr(CSR_COMCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_COMEPC));
       fflush(stdout);
-      fprintf(stdout,"\nNOCRO: %d %x %x %d",  p->allow_cross_comp, pc, p->get_csr(CSR_MEPC), is_checkcap(insn_bits));
+      fprintf(stdout,"\nNOCRO: %d %x %x %d",  p->allow_cross_comp, pc, p->get_csr(CSR_COMEPC), is_checkcap(insn_bits));
       fflush(stdout);
-      p->set_csr(CSR_MCAPCTL, 0x0);
-      throw trap_tee_pc_out_of_bounds_exception(pc);
-      
+      p->set_csr(CSR_COMCTL, 0x0);
+      throw trap_illegal_comp_entry_point(pc);
     }
   }
   
@@ -215,7 +207,7 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
     // fprintf(stdout, "\nc.jr : %x %lu %lu %lu %lu", insn_bits, rd, rs1, rs2, imm_operand);
   }
 
-  if((is_jalr && rs1 == 1) || (is_c_jr && rd == 1)){
+  if((is_jalr && rs1 == 1 && rd == 0) || (is_c_jr && rd == 1)){
       uint64_t imm_operand = (unsigned int)fetch.insn.i_imm();
       
       // fprintf(stdout, "\n%x %lu %lu %lu %lu, %lu, %lu", pc, rd, rs1, rs2, imm_operand, is_jalr, is_c_jr);
@@ -227,10 +219,16 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
       }
       // fprintf(stdout, "\nret : %x %d %d %d %d", pc, is_jalr, is_c_jalr, rd, rs1);
   }
-  else{
 
+
+  if(((is_jalr && rs1 == 7 && rd == 0) || (is_c_jr && rd == 7)) && (p->get_state()->comp_exception == 1 )){
+    // printf("Compexception %d", p->get_state()->comp_exception);
+    // printf("Setting COMCTL\n");
+    p->set_csr(CSR_COMCTL, 0x1);
+    p->get_state()->comp_exception = false;
+    p->set_csr(CSR_MIE, p->get_state()->comp_mie);
   }
-
+  
 
   
   
@@ -246,7 +244,7 @@ commit_log_stash_privilege(p);
   }
   
   
-  // if(p->is_prev_branch && (capctl & 0x3)==0x2) {
+  // if(p->is_prev_branch && (comctl & 0x3)==0x2) {
 
     // bool cond1= ( (pc>= pc_base) && (pc < pc_bound) );
     // bool dis_cap= is_disable_cap(insn_bits, fetch.insn.csr(), rs1, rs2);
@@ -256,12 +254,12 @@ commit_log_stash_privilege(p);
  //      reg_t cap= (pc_base & 0xfff0000000000000) >> 52;
  //      pc_base= pc_base & 0x000fffffffffffff;
   //    p->set_csr(CSR_UPCBASE, pc_base);
- //      p->set_csr(CSR_UCURRCAP, cap);
+ //      p->set_csr(CSR_CURRCOM, cap);
   //    p->set_csr(CSR_UPCBOUND, MMU.load_int64(ushadowsp-8));
   //    p->set_csr(CSR_USHADOWSP,ushadowsp-16);
  //    }
  //    else if(is_checkcap(insn_bits)) {
- //      reg_t curr_cap = p->get_csr(CSR_UCURRCAP);
+ //      reg_t curr_cap = p->get_csr(CSR_CURRCOM);
  //      pc_base= pc_base | (curr_cap<<52);
   //    MMU.store_uint64(ushadowsp, pc_base);
   //    p->set_csr(CSR_USHADOWSP,ushadowsp+8);
@@ -443,6 +441,7 @@ void processor_t::step(size_t n)
     }
     catch(trap_t& t)
     {
+      
       take_trap(t, pc);
       n = instret;
 

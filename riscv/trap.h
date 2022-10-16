@@ -13,6 +13,7 @@ class trap_t
  public:
   trap_t(reg_t which) : which(which) {}
   virtual const char* name();
+  virtual bool is_com_exception() { return false; }
   virtual bool has_tval() { return false; }
   virtual reg_t get_tval() { return 0; }
   reg_t cause() { return which; }
@@ -27,6 +28,19 @@ class mem_trap_t : public trap_t
   mem_trap_t(reg_t which, reg_t tval)
     : trap_t(which), tval(tval) {}
   bool has_tval() override { return true; }
+  bool is_com_exception() { return false; }
+  reg_t get_tval() override { return tval; }
+ private:
+  reg_t tval;
+};
+
+class com_trap_t : public trap_t
+{
+ public:
+  com_trap_t(reg_t which, reg_t tval)
+    : trap_t(which), tval(tval) {}
+  bool has_tval() override { return true; }
+  bool is_com_exception() { return true; }
   reg_t get_tval() override { return tval; }
  private:
   reg_t tval;
@@ -42,6 +56,12 @@ class mem_trap_t : public trap_t
  public: \
   trap_##x(reg_t tval) : mem_trap_t(n, tval) {} \
   const char* name() { return "trap_"#x; } \
+};
+
+#define DECLARE_COM_TRAP(n, x) class trap_##x : public com_trap_t { \
+ public: \
+  trap_##x(reg_t tval) : com_trap_t(n, tval) {} \
+  const char* name() { return ""#x; } \
 };
 
 DECLARE_MEM_TRAP(CAUSE_MISALIGNED_FETCH, instruction_address_misaligned)
@@ -60,8 +80,10 @@ DECLARE_MEM_TRAP(CAUSE_FETCH_PAGE_FAULT, instruction_page_fault)
 DECLARE_MEM_TRAP(CAUSE_LOAD_PAGE_FAULT, load_page_fault)
 DECLARE_MEM_TRAP(CAUSE_STORE_PAGE_FAULT, store_page_fault)
 
-DECLARE_MEM_TRAP(CAUSE_TEE_ENT_COMPARTMENT_EXCEPTION, tee_ent_compartment_exception);
-DECLARE_MEM_TRAP(CAUSE_TEE_RET_COMPARTMENT_EXCEPTION, tee_ret_compartment_exception);
-DECLARE_MEM_TRAP(CAUSE_TEE_PC_OUT_OF_BOUNDS_EXCEPTION, tee_pc_out_of_bounds_exception);
+DECLARE_COM_TRAP(CAUSE_PC_OUT_OF_BOUNDS, pc_out_of_bounds);
+DECLARE_COM_TRAP(CAUSE_RET_COMPARTMENT, ret_compartment);
+DECLARE_COM_TRAP(CAUSE_ENT_COMPARTMENT, ent_compartment);
+DECLARE_COM_TRAP(CAUSE_ILLEGAL_COMP_ENTRY_POINT, illegal_comp_entry_point)
 
 #endif
+
