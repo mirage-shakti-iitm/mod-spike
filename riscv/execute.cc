@@ -5,6 +5,7 @@
 #include "sim.h"
 #include <cassert>
 
+reg_t lowest_checkcomsp = 0x90000000;
 
 static void commit_log_stash_privilege(processor_t* p)
 {
@@ -140,7 +141,20 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   if(is_checkcap(insn_bits)){
     // Debug-Checkcap
     // fprintf(stdout,"\nDebug_Checkcap: %lu -> %lu / %d @ %#x \n", curr_cap, targetcom, no_cross_comp, pc);
+    p->get_state()->checkcap_cycles += 1;
   }
+
+  if(pc == 0x80000164){
+    // fprintf(stdout,"\nmcause -> %x\n", p->get_csr(CSR_MCAUSE));
+    // fprintf(stdout,"\nmepc -> %x\n", p->get_csr(CSR_MEPC));
+    // fprintf(stdout,"\nmtval -> %x\n", p->get_csr(CSR_MTVAL));
+    // fprintf(stdout, "\nRA1 = %lx\n", fetch.insn.rs1());
+    // fprintf(stdout, "\nRA2 = %lx\n", fetch.insn.rs2());
+    // fprintf(stdout, "\nRA3 = %lx\n", fetch.insn.rd());
+    // fprintf(stdout, "\nSM cycles before shutdown => 0x%lx\n", p->get_state()->comp_cycles);
+  fflush(stdout);
+  }
+
   if(comctl == 1){
     if((pc >= curcompcstart) && (pc < curcompcend)){
       p->allow_cross_comp = 1;
@@ -155,7 +169,11 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
       p->set_csr(CSR_COMCTL, 0x0);
       // fprintf(stdout,"\nReturning from Compartment (%d) : Allowed (%d) (%x)", p->get_csr(CSR_CURRCOM), p->allow_cross_comp, p->get_csr(CSR_UCHECKCAPSP));
       // fprintf(stdout,"\nReturn from -> %d (%x)\n", p->get_csr(CSR_CURRCOM), pc);
+      // fprintf(stdout, "Start SM cycle => 0x%lx\n", p->get_csr(CSR_MCYCLE));
       fflush(stdout);
+
+      // printf("\n\n\n\n\n\n ********************************************************** \n\n\n\n\n\n");
+      
       throw trap_ret_compartment(pc);
     }
     else if(p->allow_cross_comp == 0){
@@ -163,7 +181,11 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
       fprintf(stdout,"\nCAPCTL : %d \n", p->get_csr(CSR_COMCTL));
       // exit(0);
       fprintf(stdout,"\nNOCROSS: %d %d %d %x %x", p->get_csr(CSR_COMCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_COMEPC));
+      // fprintf(stdout, "Start SM cycle => 0x%lx\n", p->get_csr(CSR_MCYCLE));
+      // fprintf(stdout,"\ncheckcomsp -> %x\n", p->get_csr(CSR_CHECKCOMSP));
+
       fflush(stdout);
+
       throw trap_pc_out_of_bounds(pc);
     }
     else if(is_checkcap(insn_bits)){
@@ -172,20 +194,28 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
         p->set_csr(CSR_TARGETCOM, targetcom);
         // printf("\n\n\n\n\n\n ********************************************************** \n\n\n\n\n\n");
 
-        // if((p->get_csr(CSR_CURRCOM)) == 0x1)
+        // if((p->get_csr(CSR_TARGETCOM)) == 53){
           // fprintf(stdout, "\nGMP:%08x\n", pc);
+        // }
         // fprintf(stdout, "\nIS_PREV_RET => %x\n", p->is_prev_ret);
         // fprintf(stdout,"\nCompartment transition %llu -> %llu (%x) (%x)", p->get_csr(CSR_CURRCOM), targetcom, pc, p->get_csr(CSR_CHECKCOMSP));
         // fprintf(stdout,"\nEntry -> %llu : %llu\n", p->get_csr(CSR_CURRCOM), targetcom);
-        if(p->get_csr(CSR_CURRCOM) == 27 && (targetcom == 40)){
+        // fprintf(stdout, "Start SM cycle => 0x%lx @ 0x%lx\n", p->get_csr(CSR_MCYCLE), pc);
+        // if(p->get_csr(CSR_CURRCOM) == 27 && (targetcom == 40)){
           // fprintf(stdout,"\nEntry27_40 : %x\n", pc);
-          fflush(stdout);
+          // fflush(stdout);
+        // }
+
+        if(lowest_checkcomsp > p->get_csr(CSR_CHECKCOMSP)){
+          fprintf(stdout,"\ncheckcomsp -> %x\n", p->get_csr(CSR_CHECKCOMSP));
+          lowest_checkcomsp = p->get_csr(CSR_CHECKCOMSP);
         }
         
         fflush(stdout);
 
         // state.pc = 0;
         throw trap_ent_compartment(pc);
+
       }
     else{
       fprintf(stdout,"\nBypass Capctl: %d %d %d %d %x %x", p->get_csr(CSR_CURRCOM), p->get_csr(CSR_COMCTL), p->is_prev_ret, p->allow_cross_comp, pc, p->get_csr(CSR_COMEPC));
@@ -226,6 +256,9 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
     // printf("Setting COMCTL\n");
     p->set_csr(CSR_COMCTL, 0x1);
     p->get_state()->comp_exception = false;
+    p->get_state()->end_sm_cycle = p->get_csr(CSR_MCYCLE);  
+    // fprintf(stdout, "End SM cycle => 0x%lx\n", p->get_csr(CSR_MCYCLE));
+    p->get_state()->comp_cycles += p->get_state()->end_sm_cycle - p->get_state()->start_sm_cycle;
     p->set_csr(CSR_MIE, p->get_state()->comp_mie);
   }
   

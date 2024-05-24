@@ -63,5 +63,6 @@ if(s0 > pointer && pointer > stack_pointer ){ // pointer pointing to stack
 		printf("Validate Error for Hash !! %x\n", hash);
 		exit(0);
 	}
-	// printf("Val passed");
+	// printf("Val passed\n");
+	fflush(stdout);
 //}

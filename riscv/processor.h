@@ -112,6 +112,11 @@ struct state_t
   reg_t comepc;
   
   bool comp_exception;
+  bool init_status;
+  reg_t comp_cycles;
+  reg_t start_sm_cycle;
+  reg_t end_sm_cycle;
+  reg_t checkcap_cycles;
   reg_t comp_mie;
 
   reg_t prv;    // TODO: Can this be an enum instead?

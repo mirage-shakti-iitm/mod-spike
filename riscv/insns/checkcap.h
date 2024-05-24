@@ -1,3 +1,5 @@
+// p->get_state()->checkcap_cycles++;
+// printf("-");
 // reg_t capctl = p->get_csr(CSR_MCAPCTL);
 
 // if((capctl & 0x3)==0x2){
@@ -19,21 +21,3 @@
 	// 	throw trap_tee_compartment_exception(pc);
 	// }
 // }
-
-
-/*
-MCAPCTL 12'h7ff
-MCROSSCOMP_EXCEPTION 12'h7fe
-MCROSSCOMP_RET_EXCEPTION 12'h7fd
-MCAPMATRIXBASE 12'h7fc
-MCAPPCBASEBOUND 12'h7fb
-
-UCURRCAP 			12'h801
-UTARGETCAP 			12'h802
-UCHECKCAPSP 		12'h803
-UCURRCAP_PCBASE 	12'h804
-UCURRCAP_PCBOUND 	12'h805
-UPARCAP_PCBASE 		12'h806
-UANYCAP_PCBASE 		12'h807
-UANYCAP_PCBOUND 	12'h808
-*/

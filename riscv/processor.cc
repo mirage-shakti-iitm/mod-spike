@@ -29,6 +29,9 @@ processor_t::processor_t(const char* isa, simif_t* sim, uint32_t id,
 
   mmu = new mmu_t(sim, this);
 
+  state.comp_cycles = 0;
+  state.checkcap_cycles = 0;
+
   disassembler = new disassembler_t(max_xlen);
   if (ext)
     for (auto disasm_insn : ext->get_disasms())
@@ -39,6 +42,13 @@ processor_t::processor_t(const char* isa, simif_t* sim, uint32_t id,
 
 processor_t::~processor_t()
 {
+
+  // fprintf(stdout, "\nCheckcap count: %x\n", state.checkcap_cycles);
+  fprintf(stdout, "SM cycles: %x\n", state.comp_cycles);
+  // fprintf(stdout, "MCYCLE: %x\n", get_csr(CSR_MCYCLE));
+  // fprintf(stdout, "MINSTRET: %x\n", get_csr(CSR_MINSTRET));
+  fflush(stdout);
+
 #ifdef RISCV_ENABLE_HISTOGRAM
   if (histogram_enabled)
   {
@@ -275,7 +285,7 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
       state.comexccause = t.cause();
       state.comp_mie = state.mie;
       state.mie = 0;
-      // fprintf(stdout,"Setting comp_exception to true\n");
+      state.start_sm_cycle = get_csr(CSR_MCYCLE);  
       fflush(stdout);
   }
 
